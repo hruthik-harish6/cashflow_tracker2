@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Dashboard - Expense Tracker</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <h1>Welcome, {{ email }}</h1>
+    <p><a href="/logout">Logout</a></p>
+
+    <!-- FILTER -->
+    <form method="get" action="/">
+        <label>Category: </label>
+        <select name="category">
+            {% for cat in categories %}
+                <option value="{{ cat }}" {% if cat == selected_category %}selected{% endif %}>{{ cat }}</option>
+            {% endfor %}
+        </select>
+
+        <label>From: </label>
+        <input type="date" name="from_date" value="{{ from_date }}">
+
+        <label>To: </label>
+        <input type="date" name="to_date" value="{{ to_date }}">
+
+        <button type="submit">Go</button>
+        <a href="/export?category={{ selected_category }}&from_date={{ from_date }}&to_date={{ to_date }}">Export Excel</a>
+    </form>
+
+    <hr>
+
+    <!-- ADD INCOME -->
+    <h2>Add Income</h2>
+    <form method="post" action="/add_income">
+        <input type="text" name="source" placeholder="Source (Salary,...)" required>
+        <select name="category">
+            <option>Salary</option>
+            <option>Business</option>
+            <option>Freelance</option>
+            <option>Others</option>
+        </select>
+        <input type="date" name="date" value="{{ '' }}">
+        <input type="number" step="0.01" name="amount" placeholder="Amount" required>
+        <input type="text" name="note" placeholder="Note (optional)">
+        <button type="submit">Add Income</button>
+    </form>
+
+    <hr>
+
+    <!-- ADD EXPENSE -->
+    <h2>Add Expense</h2>
+    <form method="post" action="/add_expense">
+        <input type="text" name="item" placeholder="Item (Food,...)" required>
+        <select name="category">
+            <option>Food</option>
+            <option>Travel</option>
+            <option>Shopping</option>
+            <option>Recharge</option>
+            <option>Other</option>
+        </select>
+        <input type="date" name="date" value="{{ '' }}">
+        <input type="number" step="0.01" name="amount" placeholder="Amount" required>
+        <input type="text" name="note" placeholder="Note (optional)">
+        <button type="submit">Add Expense</button>
+    </form>
+
+    <hr>
+
+    <!-- INCOME TABLE -->
+    <h3>Income List</h3>
+    <table border="1">
+        <tr><th>ID</th><th>Source</th><th>Category</th><th>Date</th><th>Amount</th><th>Note</th><th>Action</th></tr>
+        {% for i in incomes %}
+        <tr>
+            <td>{{ i['id'] }}</td>
+            <td>{{ i['source'] }}</td>
+            <td>{{ i['category'] }}</td>
+            <td>{{ i['date'] }}</td>
+            <td>₹{{ "%.2f"|format(i['amount']) }}</td>
+            <td>{{ i['note'] }}</td>
+            <td><a href="/delete_income/{{ i['id'] }}">Delete</a></td>
+        </tr>
+        {% endfor %}
+    </table>
+
+    <hr>
+
+    <!-- EXPENSE TABLE -->
+    <h3>Expense List</h3>
+    <table border="1">
+        <tr><th>ID</th><th>Item</th><th>Category</th><th>Date</th><th>Amount</th><th>Note</th><th>Action</th></tr>
+        {% for e in expenses %}
+        <tr>
+            <td>{{ e['id'] }}</td>
+            <td>{{ e['item'] }}</td>
+            <td>{{ e['category'] }}</td>
+            <td>{{ e['date'] }}</td>
+            <td>₹{{ "%.2f"|format(e['amount']) }}</td>
+            <td>{{ e['note'] }}</td>
+            <td><a href="/delete_expense/{{ e['id'] }}">Delete</a></td>
+        </tr>
+        {% endfor %}
+    </table>
+
+    <h2>Total Balance: ₹{{ "%.2f"|format(balance) }}</h2>
+
+    <hr>
+
+    <!-- CHARTS -->
+    <h2>Analytics</h2>
+    <canvas id="expenseChart" width="400" height="200"></canvas>
+    <canvas id="incomeChart" width="400" height="200"></canvas>
+
+    <script>
+    // fetch chart data for current filters
+    const params = new URLSearchParams({
+        category: "{{ selected_category }}",
+        from_date: "{{ from_date }}",
+        to_date: "{{ to_date }}"
+    });
+
+    fetch('/chart_data?' + params.toString())
+    .then(r => r.json())
+    .then(data => {
+        const expLabels = data.expense.labels;
+        const expValues = data.expense.values;
+        const incLabels = data.income.labels;
+        const incValues = data.income.values;
+
+        // Expense Pie
+        const ctx = document.getElementById('expenseChart').getContext('2d');
+        new Chart(ctx, {
+            type: 'pie',
+            data: {
+                labels: expLabels,
+                datasets: [{
+                    data: expValues
+                }]
+            }
+        });
+
+        // Income Pie
+        const ctx2 = document.getElementById('incomeChart').getContext('2d');
+        new Chart(ctx2, {
+            type: 'pie',
+            data: {
+                labels: incLabels,
+                datasets: [{
+                    data: incValues
+                }]
+            }
+        });
+    }).catch(err => {
+        console.error("Chart fetch error:", err);
+    });
+    </script>
+</body>
+</html>
